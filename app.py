@@ -34,55 +34,60 @@ elif menu == "📊 Dashboard Analytics":
 
 elif menu == "🧑‍⚕️ Patient History":
     st.markdown("<h2 class='animate-fade-in'>Patient Records Database</h2>", unsafe_allow_html=True)
-    st.markdown("<div class='glass-card animate-fade-in' style='animation-delay: 0.1s;'>", unsafe_allow_html=True)
-    st.markdown("Easily search and filter through the historical clinical dataset used for training the model.")
+    st.markdown("<div class='animate-fade-in' style='margin-bottom: 1rem;'>Easily search and filter through the historical clinical dataset used for training the model.</div>", unsafe_allow_html=True)
     
-    st.dataframe(
-        data.style.background_gradient(cmap='Blues', subset=['Glucose'])
-                  .background_gradient(cmap='Reds', subset=['BMI']),
-        use_container_width=True,
-        height=600
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container():
+        st.dataframe(
+            data.style.background_gradient(cmap='Blues', subset=['Glucose'])
+                      .background_gradient(cmap='Reds', subset=['BMI']),
+            use_container_width=True,
+            height=600
+        )
 
 elif menu == "🤖 AI Health Insights":
     st.markdown("<h2 class='animate-fade-in'>AI Diagnostic Insights</h2>", unsafe_allow_html=True)
     
-    st.markdown(f"""
-    <div style='display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;'>
-        <div class="glass-card animate-fade-in" style='animation-delay: 0.1s;'>
-            <div style="display:flex; align-items:center; gap: 15px;">
-                <div style="font-size: 40px; background: rgba(37,99,235,0.1); padding: 10px; border-radius: 20px;">🧠</div>
-                <div>
-                    <h3 style="margin:0; font-size:1.2rem;">Feature Importance</h3>
-                    <p style="margin:0; color: var(--text-muted); font-size: 0.9rem;">What drives predictions</p>
-                </div>
-            </div>
-            <p style="margin-top: 15px; font-size: 0.95rem; line-height: 1.5; color: #334155;">
-                The model relies heavily on <b>Glucose</b> levels, followed by <b>BMI</b> and <b>Age</b>. Skin thickness has the least predictive power for diabetes onset in this specific demographic.
-            </p>
-        </div>
-        
-        <div class="glass-card animate-fade-in" style='animation-delay: 0.2s;'>
-            <div style="display:flex; align-items:center; gap: 15px;">
-                <div style="font-size: 40px; background: rgba(34,197,94,0.1); padding: 10px; border-radius: 20px;">⚕️</div>
-                <div>
-                    <h3 style="margin:0; font-size:1.2rem;">Model Reliability</h3>
-                    <p style="margin:0; color: var(--text-muted); font-size: 0.9rem;">Clinical validation metrics</p>
-                </div>
-            </div>
-            <p style="margin-top: 15px; font-size: 0.95rem; line-height: 1.5; color: #334155;">
-                Classification accuracy stands at <b>{clf_acc*100:.1f}%</b>. The regression model predicts glucose with an average error of <b>{reg_mae:.1f} mg/dL</b>. Recommended for supplementary clinical screening only.
-            </p>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
     
-    st.markdown("<div class='glass-card animate-fade-in' style='animation-delay: 0.3s;'>", unsafe_allow_html=True)
-    st.markdown("<h4>AI Feature Drivers (Random Forest)</h4>", unsafe_allow_html=True)
-    fig_imp = create_feature_importance_chart(feature_imp)
-    st.plotly_chart(fig_imp, use_container_width=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    with col1:
+        with st.container():
+            st.markdown("""
+            <div class="animate-fade-in">
+                <div style="display:flex; align-items:center; gap: 15px;">
+                    <div style="font-size: 40px; background: rgba(37,99,235,0.1); padding: 10px; border-radius: 20px;">🧠</div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.2rem;">Feature Importance</h3>
+                        <p style="margin:0; color: var(--text-muted); font-size: 0.9rem;">What drives predictions</p>
+                    </div>
+                </div>
+                <p style="margin-top: 15px; font-size: 0.95rem; line-height: 1.5; color: #334155;">
+                    The model relies heavily on <b>Glucose</b> levels, followed by <b>BMI</b> and <b>Age</b>. Skin thickness has the least predictive power for diabetes onset in this specific demographic.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+    with col2:
+        with st.container():
+            st.markdown(f"""
+            <div class="animate-fade-in" style="animation-delay: 0.1s;">
+                <div style="display:flex; align-items:center; gap: 15px;">
+                    <div style="font-size: 40px; background: rgba(34,197,94,0.1); padding: 10px; border-radius: 20px;">⚕️</div>
+                    <div>
+                        <h3 style="margin:0; font-size:1.2rem;">Model Reliability</h3>
+                        <p style="margin:0; color: var(--text-muted); font-size: 0.9rem;">Clinical validation metrics</p>
+                    </div>
+                </div>
+                <p style="margin-top: 15px; font-size: 0.95rem; line-height: 1.5; color: #334155;">
+                    Classification accuracy stands at <b>{clf_acc*100:.1f}%</b>. The regression model predicts glucose with an average error of <b>{reg_mae:.1f} mg/dL</b>. Recommended for supplementary clinical screening only.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.container():
+        st.markdown("<h4 class='animate-fade-in' style='animation-delay: 0.2s;'>AI Feature Drivers (Random Forest)</h4>", unsafe_allow_html=True)
+        fig_imp = create_feature_importance_chart(feature_imp)
+        st.plotly_chart(fig_imp, use_container_width=True)
 
 # --- FLOATING AI ASSISTANT ---
 render_ai_assistant_button()

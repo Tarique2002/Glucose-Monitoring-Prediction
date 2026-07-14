@@ -12,6 +12,7 @@ setup(
         "numpy>=1.21.0",
         "scikit-learn>=1.0.0",
         "plotly>=5.9.0",
+        "matplotlib>=3.5.0",
     ],
     python_requires=">=3.8",
 )
