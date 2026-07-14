@@ -7,11 +7,11 @@ import plotly.express as px
 
 def create_shap_waterfall(shap_values, feature_names, base_value, max_display=10):
     """Create a Plotly waterfall chart for SHAP values of a single prediction."""
-    # Ensure inputs are correctly shaped
+    # Ensure inputs are correctly shaped (expecting 1D array)
     if isinstance(shap_values, list):
         shap_values = shap_values[1] # For classification, take positive class
         
-    vals = shap_values
+    vals = np.array(shap_values).flatten()
     
     # Sort features by absolute SHAP value
     feature_order = np.argsort(np.abs(vals))
@@ -79,10 +79,20 @@ def render_explainability_page(model, X_train, scaler, patient_inputs=None):
             expected_value = explainer.expected_value
             
             if isinstance(expected_value, list) or isinstance(expected_value, np.ndarray):
-                expected_value = expected_value[1] # binary classification
+                expected_value = expected_value[1] if len(expected_value) > 1 else expected_value[0]
+                
+            if isinstance(shap_vals, list):
+                sv = shap_vals[1]
+            else:
+                sv = shap_vals
+                
+            if len(sv.shape) == 3:
+                sv = sv[:, :, 1]
+                
+            sv_1d = sv[0] if len(sv.shape) == 2 else sv
                 
             fig_waterfall = create_shap_waterfall(
-                shap_vals[0] if isinstance(shap_vals, list) else shap_vals, 
+                sv_1d, 
                 ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI', 'DPF', 'Age'],
                 expected_value
             )
@@ -94,8 +104,15 @@ def render_explainability_page(model, X_train, scaler, patient_inputs=None):
         # Calculate SHAP for the background dataset
         shap_values_global = explainer.shap_values(background)
         
-        # Create a proxy summary bar chart using Plotly
-        vals = np.abs(shap_values_global[1] if isinstance(shap_values_global, list) else shap_values_global).mean(0)
+        if isinstance(shap_values_global, list):
+            svg = shap_values_global[1]
+        else:
+            svg = shap_values_global
+            
+        if len(svg.shape) == 3:
+            svg = svg[:, :, 1]
+            
+        vals = np.abs(svg).mean(0)
         feature_names = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI', 'DPF', 'Age']
         
         df_shap = pd.DataFrame(list(zip(feature_names, vals)), columns=['Feature', 'Mean |SHAP|'])
