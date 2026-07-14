@@ -54,7 +54,10 @@ def create_pdf_report(results: dict, inputs: dict) -> bytes:
     else:
         pdf.multi_cell(0, 8, "- Diet: Maintain a balanced diet rich in fiber.\n- Activity: Regular exercise (150 mins/week).\n- Medical: Routine annual checkup.")
         
-    return pdf.output(dest='S').encode('latin-1')
+    output = pdf.output(dest='S')
+    if isinstance(output, str):
+        return output.encode('latin-1')
+    return bytes(output)
 
 def get_pdf_download_link(pdf_bytes: bytes, filename: str = "health_report.pdf") -> str:
     """Generates a clickable download link for the PDF."""
