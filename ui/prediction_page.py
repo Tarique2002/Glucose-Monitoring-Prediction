@@ -86,12 +86,10 @@ def render_prediction_page(
                         <h2 style="color: {risk_color}">{predicted_glucose:.1f} <span>mg/dL</span></h2>
                         <h4 style="color: {risk_color};">{risk_text}</h4>
                         <p>Confidence Score: {confidence_score:.1f}%</p>
-                        
-                        <div style="margin-top: 15px; font-weight: bold; font-size: 1.2rem; color: #0F172A;">
-                            Health Score: {health_score}/100
-                        </div>
                     </div>
                     """, unsafe_allow_html=True)
+                    
+                    st.markdown(f"### Health Score: **{health_score}/100**")
                     
                     st.markdown("<br>", unsafe_allow_html=True)
                     
