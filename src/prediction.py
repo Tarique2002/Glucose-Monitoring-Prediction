@@ -4,20 +4,26 @@ import streamlit as st
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import mean_absolute_error, r2_score, accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 from typing import Tuple, List, Dict, Any
 
 @st.cache_data
-def load_and_train() -> Tuple[pd.DataFrame, RandomForestRegressor, RandomForestClassifier, StandardScaler, StandardScaler, float, float, float, pd.DataFrame, List[str]]:
+def load_and_train():
     """
-    Load dataset from remote URL, preprocess, and train the prediction models.
-    
-    Returns:
-        Tuple containing the dataset, trained models, scalers, evaluation metrics, feature importance, and feature names.
+    Load dataset, train multiple prediction models, and calculate evaluation metrics.
     """
     url = "https://raw.githubusercontent.com/npradaschnor/Pima-Indians-Diabetes-Dataset/master/diabetes.csv"
     data = pd.read_csv(url)
-
+    
+    # 1. Data Quality Checks
+    missing_vals = data.isnull().sum().sum()
+    outlier_warnings = []
+    if data['Glucose'].min() == 0:
+        outlier_warnings.append("Warning: Glucose level of 0 found in training data (likely missing values).")
+        
     # --- Regression Model (Glucose Prediction) ---
     reg_features = ['Pregnancies', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI',
                      'DiabetesPedigreeFunction', 'Age']
@@ -37,7 +43,7 @@ def load_and_train() -> Tuple[pd.DataFrame, RandomForestRegressor, RandomForestC
     reg_mae = mean_absolute_error(y_test_r, y_pred_r)
     reg_r2 = r2_score(y_test_r, y_pred_r)
 
-    # --- Classification Model (Diabetes Risk) ---
+    # --- Classification Models (Diabetes Risk) ---
     clf_features = ['Pregnancies', 'Glucose', 'BloodPressure', 'SkinThickness', 'Insulin',
                      'BMI', 'DiabetesPedigreeFunction', 'Age']
     X_clf = data[clf_features]
@@ -49,19 +55,83 @@ def load_and_train() -> Tuple[pd.DataFrame, RandomForestRegressor, RandomForestC
     X_train_c_scaled = scaler_clf.fit_transform(X_train_c)
     X_test_c_scaled = scaler_clf.transform(X_test_c)
 
-    clf_model = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf_model.fit(X_train_c_scaled, y_train_c)
+    # Dictionary of classifiers to compare
+    models = {
+        "Random Forest": RandomForestClassifier(n_estimators=100, random_state=42),
+        "Logistic Regression": LogisticRegression(random_state=42),
+        "Decision Tree": DecisionTreeClassifier(random_state=42),
+        "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+    }
+    
+    model_metrics = {}
+    trained_models = {}
+    
+    for name, model in models.items():
+        model.fit(X_train_c_scaled, y_train_c)
+        trained_models[name] = model
+        
+        y_pred = model.predict(X_test_c_scaled)
+        y_proba = model.predict_proba(X_test_c_scaled)[:, 1]
+        
+        model_metrics[name] = {
+            "Accuracy": accuracy_score(y_test_c, y_pred),
+            "Precision": precision_score(y_test_c, y_pred),
+            "Recall": recall_score(y_test_c, y_pred),
+            "F1": f1_score(y_test_c, y_pred),
+            "ROC AUC": roc_auc_score(y_test_c, y_proba)
+        }
 
-    y_pred_c = clf_model.predict(X_test_c_scaled)
-    clf_acc = accuracy_score(y_test_c, y_pred_c)
+    # Primary classifier for general usage is Random Forest
+    primary_clf = trained_models["Random Forest"]
+    clf_acc = model_metrics["Random Forest"]["Accuracy"]
 
     # Feature importance
     feature_imp = pd.DataFrame({
-        'Feature': reg_features,
-        'Importance': reg_model.feature_importances_
+        'Feature': clf_features,
+        'Importance': primary_clf.feature_importances_
     }).sort_values('Importance', ascending=True)
 
-    return data, reg_model, clf_model, scaler_reg, scaler_clf, reg_mae, reg_r2, clf_acc, feature_imp, reg_features
+    return {
+        'data': data,
+        'reg_model': reg_model,
+        'primary_clf': primary_clf,
+        'trained_models': trained_models,
+        'scaler_reg': scaler_reg,
+        'scaler_clf': scaler_clf,
+        'reg_mae': reg_mae,
+        'reg_r2': reg_r2,
+        'clf_acc': clf_acc,
+        'feature_imp': feature_imp,
+        'reg_features': reg_features,
+        'clf_features': clf_features,
+        'model_metrics': model_metrics,
+        'missing_vals': missing_vals,
+        'outlier_warnings': outlier_warnings,
+        'X_test_c_scaled': X_test_c_scaled,
+        'y_test_c': y_test_c
+    }
+
+def calculate_health_score(predicted_glucose: float, bmi: float, blood_pressure: float) -> int:
+    """Calculate a 0-100 health score based on key metrics."""
+    score = 100
+    
+    # Glucose penalty
+    if predicted_glucose > 140:
+        score -= min(40, (predicted_glucose - 140) * 0.5)
+    elif predicted_glucose < 70:
+        score -= 20
+        
+    # BMI penalty
+    if bmi > 25:
+        score -= min(20, (bmi - 25) * 1.5)
+    elif bmi < 18.5:
+        score -= 10
+        
+    # BP Penalty
+    if blood_pressure > 120:
+        score -= min(20, (blood_pressure - 120) * 0.5)
+        
+    return max(0, min(100, int(score)))
 
 def predict_patient(
     inputs: Dict[str, float],
@@ -101,8 +171,12 @@ def predict_patient(
     diabetes_risk = clf_model.predict(input_clf_scaled)[0]
     risk_proba = clf_model.predict_proba(input_clf_scaled)[0]
     
+    health_score = calculate_health_score(predicted_glucose, inputs['bmi'], inputs['blood_pressure'])
+    
     return {
         'predicted_glucose': predicted_glucose,
         'diabetes_risk': diabetes_risk,
-        'risk_proba': risk_proba
+        'risk_proba': risk_proba,
+        'health_score': health_score,
+        'input_clf_scaled': input_clf_scaled # needed for SHAP
     }

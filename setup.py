@@ -13,6 +13,10 @@ setup(
         "scikit-learn>=1.0.0",
         "plotly>=5.9.0",
         "matplotlib>=3.5.0",
+        "xgboost>=1.7.0",
+        "shap>=0.41.0",
+        "fpdf2>=2.7.0",
+        "streamlit-option-menu>=0.3.6",
     ],
     python_requires=">=3.8",
 )

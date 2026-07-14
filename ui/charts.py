@@ -1,77 +1,165 @@
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+import numpy as np
 
-def create_gauge_chart(predicted_glucose: float, risk_color: str) -> go.Figure:
-    """
-    Creates a gauge chart for predicted glucose level.
-    """
-    fig = go.Figure(go.Indicator(
-        mode="gauge+number",
-        value=predicted_glucose,
-        title={'text': "Glucose Saturation Level", 'font': {'size': 16, 'color': '#64748B', 'family': 'Inter'}},
-        number={'font': {'size': 40, 'color': '#0F172A', 'family': 'Poppins'}},
-        gauge={
-            'axis': {'range': [0, 250], 'tickwidth': 1, 'tickcolor': '#CBD5E1'},
-            'bar': {'color': risk_color.replace('var(--danger)', '#EF4444').replace('var(--accent)', '#22C55E')},
-            'bgcolor': 'rgba(255,255,255,0)',
-            'borderwidth': 0,
-            'steps': [
-                {'range': [0, 100], 'color': 'rgba(34, 197, 94, 0.1)'},
-                {'range': [100, 125], 'color': 'rgba(245, 158, 11, 0.1)'},
-                {'range': [125, 250], 'color': 'rgba(239, 68, 68, 0.1)'}
-            ],
-        }
-    ))
-    fig.update_layout(
-        paper_bgcolor='rgba(0,0,0,0)',
-        plot_bgcolor='rgba(0,0,0,0)',
-        height=280,
-        margin=dict(l=20, r=20, t=40, b=20)
-    )
-    return fig
+def _get_transparent_layout():
+    return {
+        'paper_bgcolor': 'rgba(0,0,0,0)',
+        'plot_bgcolor': 'rgba(0,0,0,0)',
+        'margin': dict(t=30, l=10, r=10, b=10)
+    }
 
 def create_risk_pie_chart(data: pd.DataFrame) -> go.Figure:
-    """
-    Pie chart showing the distribution of diabetes risk in the dataset.
-    """
-    fig = px.pie(data, names='Outcome', title="", hole=0.7,
-                     color_discrete_sequence=['#2563EB', '#EF4444'])
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
-                          showlegend=False, margin=dict(t=0, b=0, l=0, r=0), height=300)
-    fig.add_annotation(text="Risk", x=0.5, y=0.5, font_size=20, showarrow=False)
+    risk_counts = data['Outcome'].value_counts()
+    labels = ['Normal', 'High Risk (Diabetic)']
+    values = [risk_counts[0], risk_counts[1]]
+    
+    fig = go.Figure(data=[go.Pie(
+        labels=labels, 
+        values=values, 
+        hole=.5,
+        marker_colors=['#22C55E', '#EF4444'],
+        textinfo='label+percent'
+    )])
+    fig.update_layout(**_get_transparent_layout(), showlegend=False)
     return fig
 
 def create_age_glucose_scatter(data: pd.DataFrame) -> go.Figure:
-    """
-    Scatter plot of Age vs Glucose colored by Outcome.
-    """
-    fig = px.scatter(data, x='Age', y='Glucose', color='Outcome',
-                              color_discrete_map={0: '#14B8A6', 1: '#F59E0B'},
-                              opacity=0.6)
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                               margin=dict(t=0, b=0, l=0, r=0), height=300)
-    fig.update_xaxes(showgrid=False)
-    fig.update_yaxes(showgrid=True, gridcolor='rgba(0,0,0,0.05)')
+    fig = px.scatter(
+        data, 
+        x='Age', 
+        y='Glucose', 
+        color='Outcome',
+        color_continuous_scale=['#22C55E', '#EF4444'],
+        size='BMI',
+        opacity=0.7,
+        hover_data=['Insulin', 'BloodPressure']
+    )
+    fig.update_layout(**_get_transparent_layout(), coloraxis_showscale=False)
     return fig
 
 def create_correlation_heatmap(data: pd.DataFrame) -> go.Figure:
-    """
-    Heatmap of numerical feature correlations.
-    """
-    fig = px.imshow(data.corr(numeric_only=True), 
-                      color_continuous_scale='Blues',
-                      aspect="auto")
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', margin=dict(t=0, b=0, l=0, r=0), height=400)
+    corr = data.corr()
+    fig = go.Figure(data=go.Heatmap(
+        z=corr.values,
+        x=corr.columns,
+        y=corr.index,
+        colorscale='RdBu_r',
+        zmin=-1, zmax=1
+    ))
+    fig.update_layout(**_get_transparent_layout())
     return fig
 
 def create_feature_importance_chart(feature_imp: pd.DataFrame) -> go.Figure:
-    """
-    Bar chart showing feature importance.
-    """
-    fig = px.bar(feature_imp, x='Importance', y='Feature', orientation='h',
-                      color='Importance', color_continuous_scale='Teal')
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
-                           margin=dict(t=0, b=0, l=0, r=0), height=350)
-    fig.update_yaxes(categoryorder="total ascending")
+    fig = px.bar(
+        feature_imp, 
+        x='Importance', 
+        y='Feature', 
+        orientation='h',
+        color='Importance',
+        color_continuous_scale='Blues'
+    )
+    fig.update_layout(**_get_transparent_layout(), coloraxis_showscale=False)
+    return fig
+
+def create_gauge_chart(value: float, color: str) -> go.Figure:
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = value,
+        domain = {'x': [0, 1], 'y': [0, 1]},
+        title = {'text': "Predicted Glucose (mg/dL)"},
+        gauge = {
+            'axis': {'range': [None, 300], 'tickwidth': 1, 'tickcolor': "darkblue"},
+            'bar': {'color': color},
+            'bgcolor': "rgba(255,255,255,0.5)",
+            'borderwidth': 2,
+            'bordercolor': "gray",
+            'steps': [
+                {'range': [0, 100], 'color': 'rgba(34,197,94,0.3)'},
+                {'range': [100, 125], 'color': 'rgba(245,158,11,0.3)'},
+                {'range': [125, 300], 'color': 'rgba(239,68,68,0.3)'}
+            ]
+        }
+    ))
+    fig.update_layout(height=250, **_get_transparent_layout())
+    return fig
+
+# --- NEW CHARTS ---
+
+def create_violin_plot(data: pd.DataFrame, feature: str) -> go.Figure:
+    fig = px.violin(data, y=feature, color="Outcome", box=True, points="all",
+                    color_discrete_map={0: '#22C55E', 1: '#EF4444'})
+    fig.update_layout(**_get_transparent_layout())
+    return fig
+
+def create_box_plot(data: pd.DataFrame, y_feature: str, x_feature: str) -> go.Figure:
+    fig = px.box(data, x=x_feature, y=y_feature, color=x_feature,
+                 color_discrete_map={0: '#22C55E', 1: '#EF4444'})
+    fig.update_layout(**_get_transparent_layout())
+    return fig
+
+def create_radar_chart(data: pd.DataFrame) -> go.Figure:
+    # Scale features 0-1 for radar chart
+    features = ['Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI', 'Age']
+    df_mean = data.groupby('Outcome')[features].mean().reset_index()
+    
+    fig = go.Figure()
+    
+    for i in range(len(df_mean)):
+        outcome = df_mean['Outcome'].iloc[i]
+        color = '#EF4444' if outcome == 1 else '#22C55E'
+        name = 'High Risk' if outcome == 1 else 'Normal'
+        
+        # Min-Max scale just for visual
+        vals = []
+        for f in features:
+            val = (df_mean[f].iloc[i] - data[f].min()) / (data[f].max() - data[f].min())
+            vals.append(val)
+            
+        fig.add_trace(go.Scatterpolar(
+            r=vals,
+            theta=features,
+            fill='toself',
+            name=name,
+            line_color=color
+        ))
+        
+    fig.update_layout(
+        polar=dict(radialaxis=dict(visible=False)),
+        showlegend=True,
+        **_get_transparent_layout()
+    )
+    return fig
+
+def create_sunburst_chart(data: pd.DataFrame) -> go.Figure:
+    # Create categorical bins for sunburst
+    df = data.copy()
+    df['Risk Category'] = df['Outcome'].map({0: 'Normal', 1: 'High Risk'})
+    df['BMI Category'] = pd.cut(df['BMI'], bins=[0, 18.5, 25, 30, 100], labels=['Underweight', 'Normal', 'Overweight', 'Obese'])
+    
+    # Drop NAs
+    df = df.dropna(subset=['BMI Category'])
+    
+    fig = px.sunburst(df, path=['Risk Category', 'BMI Category'], 
+                      color='Risk Category', color_discrete_map={'Normal': '#22C55E', 'High Risk': '#EF4444'})
+    fig.update_layout(**_get_transparent_layout())
+    return fig
+
+def create_treemap_chart(data: pd.DataFrame) -> go.Figure:
+    df = data.copy()
+    df['Risk Category'] = df['Outcome'].map({0: 'Normal', 1: 'High Risk'})
+    df['Age Group'] = pd.cut(df['Age'], bins=[0, 30, 50, 100], labels=['Young (<30)', 'Middle (30-50)', 'Senior (>50)'])
+    
+    df_count = df.groupby(['Risk Category', 'Age Group']).size().reset_index(name='Count')
+    
+    fig = px.treemap(df_count, path=[px.Constant("All Patients"), 'Risk Category', 'Age Group'], values='Count',
+                     color='Risk Category', color_discrete_map={'(?)': 'gray', 'Normal': '#22C55E', 'High Risk': '#EF4444'})
+    fig.update_layout(**_get_transparent_layout())
+    return fig
+
+def create_histogram(data: pd.DataFrame, feature: str) -> go.Figure:
+    fig = px.histogram(data, x=feature, color="Outcome", marginal="rug",
+                       color_discrete_map={0: '#22C55E', 1: '#EF4444'})
+    fig.update_layout(**_get_transparent_layout())
     return fig

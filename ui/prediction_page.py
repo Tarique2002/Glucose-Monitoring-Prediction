@@ -1,7 +1,9 @@
 import streamlit as st
 import time
 from src.prediction import predict_patient
+from src.database import save_prediction
 from ui.charts import create_gauge_chart
+from ui.report_generator import create_pdf_report, get_pdf_download_link
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 
@@ -12,9 +14,8 @@ def render_prediction_page(
     scaler_clf: StandardScaler
 ):
     """
-    Renders the home page with the prediction form and results.
+    Renders the home page with the prediction form, results, and PDF generator.
     """
-    # Hero Section using Streamlit layout
     col_hero1, col_hero2 = st.columns([2, 1])
     with col_hero1:
         st.markdown("""
@@ -49,7 +50,7 @@ def render_prediction_page(
     with form_col2:
         if predict_btn:
             with st.spinner('Analyzing physiological data with Random Forest Models...'):
-                time.sleep(0.8) # Simulate processing for premium feel
+                time.sleep(0.8) # Simulate processing
                 
                 inputs = {
                     'pregnancies': pregnancies,
@@ -63,14 +64,18 @@ def render_prediction_page(
                 
                 results = predict_patient(inputs, reg_model, clf_model, scaler_reg, scaler_clf)
                 
+                # Save to history
+                save_prediction('guest', inputs, results)
+                
                 predicted_glucose = results['predicted_glucose']
                 diabetes_risk = results['diabetes_risk']
                 risk_proba = results['risk_proba']
+                health_score = results['health_score']
                 
                 is_high_risk = predicted_glucose >= 126 or diabetes_risk == 1
                 card_class = "result-danger" if is_high_risk else "result-safe"
                 risk_color = "var(--danger)" if is_high_risk else "var(--accent)"
-                risk_text = "High Risk Detected" if is_high_risk else "Normal Range"
+                risk_text = "High Risk" if is_high_risk else "Normal Range"
                 
                 confidence_score = (risk_proba[1] if is_high_risk else risk_proba[0])*100
                 
@@ -81,6 +86,10 @@ def render_prediction_page(
                         <h2 style="color: {risk_color}">{predicted_glucose:.1f} <span>mg/dL</span></h2>
                         <h4 style="color: {risk_color};">{risk_text}</h4>
                         <p>Confidence Score: {confidence_score:.1f}%</p>
+                        
+                        <div style="margin-top: 15px; font-weight: bold; font-size: 1.2rem; color: #0F172A;">
+                            Health Score: {health_score}/100
+                        </div>
                     </div>
                     """, unsafe_allow_html=True)
                     
@@ -93,13 +102,20 @@ def render_prediction_page(
                         st.success(f"🏃 **Activity:**\n\n{'Daily cardio required' if is_high_risk else 'Regular exercise'}")
                     with r_col3:
                         st.warning(f"💊 **Action:**\n\n{'Consult physician' if is_high_risk else 'Routine checkup'}")
+                        
+                # Generate PDF Report
+                st.markdown("<hr>", unsafe_allow_html=True)
+                st.markdown("### AI Health Report")
+                st.markdown("Download a comprehensive PDF summary of this diagnostic prediction.")
+                pdf_bytes = create_pdf_report(results, inputs)
+                st.markdown(get_pdf_download_link(pdf_bytes, f"AI_Health_Report_{int(time.time())}.pdf"), unsafe_allow_html=True)
                 
                 # Gauge Chart
+                st.markdown("<hr>", unsafe_allow_html=True)
                 fig_gauge = create_gauge_chart(predicted_glucose, risk_color)
                 st.plotly_chart(fig_gauge, use_container_width=True)
 
         else:
-            # Idle State for right column
             with st.container():
                 st.markdown("""
                 <div class="idle-state">
