@@ -18,11 +18,22 @@ def load_and_train():
     url = "https://raw.githubusercontent.com/npradaschnor/Pima-Indians-Diabetes-Dataset/master/diabetes.csv"
     data = pd.read_csv(url)
     
-    # 1. Data Quality Checks
-    missing_vals = data.isnull().sum().sum()
+    # 1. Data Quality Checks & Automated Cleaning
+    missing_vals_start = data.isnull().sum().sum()
     outlier_warnings = []
-    if data['Glucose'].min() == 0:
-        outlier_warnings.append("Warning: Glucose level of 0 found in training data (likely missing values).")
+    
+    # In Pima Indians dataset, 0 means missing for these columns
+    zero_cols = ['Glucose', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI']
+    
+    # Count how many 0s exist
+    zero_count = (data[zero_cols] == 0).sum().sum()
+    
+    if zero_count > 0:
+        # Replace 0s with NaN
+        data[zero_cols] = data[zero_cols].replace(0, np.nan)
+        # Impute with column median
+        data[zero_cols] = data[zero_cols].fillna(data[zero_cols].median())
+        outlier_warnings.append(f"AI Data Cleaning: Automatically imputed {zero_count} missing/zero values using median interpolation.")
         
     # --- Regression Model (Glucose Prediction) ---
     reg_features = ['Pregnancies', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI',
@@ -105,7 +116,7 @@ def load_and_train():
         'reg_features': reg_features,
         'clf_features': clf_features,
         'model_metrics': model_metrics,
-        'missing_vals': missing_vals,
+        'missing_vals': missing_vals_start,
         'outlier_warnings': outlier_warnings,
         'X_test_c_scaled': X_test_c_scaled,
         'y_test_c': y_test_c
