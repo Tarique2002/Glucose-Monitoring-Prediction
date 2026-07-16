@@ -1,3 +1,4 @@
+# pyrefly: ignore [missing-import]
 import streamlit as st
 import os
 
@@ -34,16 +35,12 @@ inject_custom_css()
 # Loads models once and caches them
 model_data = load_and_train()
 
-# Display data quality notifications
-if model_data.get('outlier_warnings'):
-    for w in model_data['outlier_warnings']:
-        if "AI Data Cleaning" in w:
-            st.toast(w, icon="✅")
-        else:
-            st.toast(w, icon="⚠️")
-
 # --- SIDEBAR NAVIGATION ---
 menu = render_sidebar()
+
+
+
+
 
 # --- MAIN APP ROUTING ---
 if menu == "Home & Predict":

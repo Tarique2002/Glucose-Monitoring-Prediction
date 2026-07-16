@@ -28,12 +28,18 @@ def load_and_train():
     # Count how many 0s exist
     zero_count = (data[zero_cols] == 0).sum().sum()
     
+    import logging
+    logger = logging.getLogger(__name__)
+    
     if zero_count > 0:
         # Replace 0s with NaN
         data[zero_cols] = data[zero_cols].replace(0, np.nan)
         # Impute with column median
         data[zero_cols] = data[zero_cols].fillna(data[zero_cols].median())
-        outlier_warnings.append(f"AI Data Cleaning: Automatically imputed {zero_count} missing/zero values using median interpolation.")
+        
+        msg = f"AI Data Cleaning: Automatically imputed {zero_count} missing/zero values using median interpolation."
+        logger.info(msg)
+        outlier_warnings.append(msg)
         
     # --- Regression Model (Glucose Prediction) ---
     reg_features = ['Pregnancies', 'BloodPressure', 'SkinThickness', 'Insulin', 'BMI',
